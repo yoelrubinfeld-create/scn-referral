@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Care Network</title>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --navy:#1a2e4a; --navy-light:#243d5e; --teal:#1e7d6b; --teal-light:#e8f5f2;
+    --teal-mid:#2a9d87; --gold:#c9943a; --light:#f4f7fa; --border:#d0d9e4;
+    --text:#1e2d3d; --muted:#64748b; --white:#ffffff; --red:#dc2626;
+    --green:#16a34a; --purple:#7c3aed;
+    --shadow:0 2px 8px rgba(0,0,0,.08); --shadow-lg:0 8px 32px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Source Sans 3',sans-serif;background:var(--light);color:var(--text);font-size:15px;line-height:1.6;}
+
+  /* LOGIN */
+  #login-page{display:none;min-height:100vh;background:linear-gradient(135deg,var(--navy) 0%,#0f1e30 50%,#1a3a2e 100%);align-items:center;justify-content:center;}
+  #login-page.active{display:flex;}
+  .login-box{background:var(--white);border-radius:16px;padding:48px 44px;width:100%;max-width:420px;box-shadow:var(--shadow-lg);}
+  .login-logo{text-align:center;margin-bottom:32px;}
+  .login-logo h1{font-family:'Merriweather',serif;font-size:1.4rem;color:var(--navy);margin-top:12px;}
+  .login-logo .sub{font-size:.85rem;color:var(--muted);margin-top:4px;}
+  .login-icon{width:56px;height:56px;background:var(--teal);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;}
+  .login-field{margin-bottom:18px;}
+  .login-field label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+  .login-field input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:11px 14px;font-family:'Source Sans 3',sans-serif;font-size:.95rem;color:var(--text);background:#fafbfc;transition:border-color .2s,box-shadow .2s;}
+  .login-field input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(30,125,107,.12);}
+  .btn-login{width:100%;background:var(--teal);color:var(--white);border:none;border-radius:8px;padding:13px;font-family:'Source Sans 3',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;margin-top:8px;}
+  .btn-login:hover{background:var(--teal-mid);}
+  .login-error{background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:10px 14px;font-size:.88rem;color:var(--red);margin-top:12px;display:none;}
+  .login-error.show{display:block;}
+
+  /* NAV */
+  .topnav{background:var(--navy);color:var(--white);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px;}
+  .topnav-brand{font-family:'Merriweather',serif;font-size:.95rem;letter-spacing:.02em;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .topnav-brand .dot{width:9px;height:9px;background:var(--gold);border-radius:50%;flex-shrink:0;}
+  .topnav-center{display:flex;align-items:center;gap:3px;flex:1;justify-content:center;}
+  .topnav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .nav-tab{padding:5px 12px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:500;color:#94a3b8;transition:all .2s;border:none;background:none;white-space:nowrap;}
+  .nav-tab:hover{color:var(--white);background:rgba(255,255,255,.08);}
+  .nav-tab.active{color:var(--white);background:rgba(255,255,255,.15);}
+  .nav-tab.admin-only{color:var(--gold);}
+  .nav-tab.admin-only:hover{background:rgba(201,148,58,.15);}
+  .nav-tab.admin-only.active{background:rgba(201,148,58,.2);}
+  .user-pill{background:rgba(255,255,255,.1);border-radius:20px;padding:4px 12px 4px 8px;display:flex;align-items:center;gap:7px;font-size:.78rem;color:#cbd5e1;white-space:nowrap;}
+  .user-pill .avatar{width:24px;height:24px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:white;flex-shrink:0;}
+  .btn-logout{background:none;border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#94a3b8;padding:4px 10px;font-size:.78rem;cursor:pointer;transition:all .2s;white-space:nowrap;}
+  .btn-logout:hover{border-color:rgba(255,255,255,.4);color:white;}
+
+  /* LAYOUT */
+  .main{max-width:900px;margin:0 auto;padding:32px 20px 60px;}
+  .main.wide{max-width:1200px;}
+  .page-title{font-family:'Merriweather',serif;font-size:1.3rem;color:var(--navy);margin-bottom:24px;display:flex;align-items:center;gap:12px;}
+  .page-title .pill{font-family:'Source Sans 3',sans-serif;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:var(--teal-light);color:var(--teal);padding:3px 10px;border-radius:20px;}
+
+  /* SECTIONS */
+  .section{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:24px;box-shadow:var(--shadow);overflow:visible;}
+  .section-header{background:var(--navy);color:var(--white);padding:13px 24px;font-family:'Merriweather',serif;font-size:.9rem;display:flex;align-items:center;gap:10px;border-radius:10px 10px 0 0;}
+  .section-header .badge{background:var(--gold);color:var(--navy);font-family:'Source Sans 3',sans-serif;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;}
+  .section-body{padding:24px;}
+
+  /* FORM */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px 20px;}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px 20px;}
+  .span-2{grid-column:span 2;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+  .required{color:var(--red);}
+  input[type="text"],input[type="date"],input[type="tel"],input[type="email"],input[type="number"],input[type="password"],textarea,select{border:1.5px solid var(--border);border-radius:6px;padding:9px 12px;font-family:'Source Sans 3',sans-serif;font-size:.95rem;color:var(--text);background:#fafbfc;transition:border-color .2s,box-shadow .2s;width:100%;}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(30,125,107,.12);background:white;}
+  textarea{resize:vertical;min-height:70px;}
+  .hh-table{width:100%;border-collapse:collapse;}
+  .hh-table thead tr{background:var(--teal-light);}
+  .hh-table th{text-align:left;font-size:.76rem;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.05em;padding:10px;border-bottom:2px solid var(--teal);}
+  .hh-table td{padding:5px 7px;border-bottom:1px solid #edf0f5;}
+  .hh-table tbody tr:last-child td{border-bottom:none;}
+  .hh-table .row-num{font-size:.78rem;color:var(--muted);font-weight:700;text-align:center;width:28px;}
+  .hh-table input{font-size:.86rem;padding:6px 9px;}
+  .yn-row{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;}
+  .yn-label{font-size:.93rem;font-weight:600;color:var(--text);flex:1 1 240px;}
+  .yn-opts{display:flex;gap:14px;flex-shrink:0;}
+  .yn-opts label{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:500;color:var(--text);cursor:pointer;}
+  input[type="radio"],input[type="checkbox"]{accent-color:var(--teal);width:15px;height:15px;cursor:pointer;}
+  .conditional{background:var(--teal-light);border-left:3px solid var(--teal);border-radius:0 6px 6px 0;padding:14px 16px;margin-top:10px;display:none;}
+  .conditional.visible{display:block;}
+  .conditional .field label{color:var(--teal);}
+  .cb-group{display:flex;flex-direction:column;gap:8px;margin-top:6px;}
+  .cb-group label{display:flex;align-items:center;gap:9px;font-size:.88rem;font-weight:400;color:var(--text);cursor:pointer;}
+  .q-block{padding:16px 0;border-bottom:1px solid #edf0f5;}
+  .q-block:last-child{border-bottom:none;padding-bottom:0;}
+  .divider{height:1px;background:var(--border);margin:18px 0;}
+  .hh-count-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .hh-count-row>label{font-size:.93rem;font-weight:600;color:var(--text);}
+  .hh-count-row select{width:auto;min-width:90px;}
+  .addr-section-label{font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);}
+
+  /* BUTTONS */
+  .submit-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 24px;background:#f0f4f8;border-top:1px solid var(--border);border-radius:0 0 10px 10px;}
+  .submit-bar-right{display:flex;gap:10px;}
+  .btn{font-family:'Source Sans 3',sans-serif;font-size:.93rem;font-weight:600;border:none;border-radius:7px;padding:10px 20px;cursor:pointer;transition:all .2s;}
+  .btn:active{transform:scale(.98);}
+  .btn-ghost{background:var(--border);color:var(--text);}
+  .btn-ghost:hover{opacity:.8;}
+  .btn-primary{background:var(--teal);color:white;}
+  .btn-primary:hover{background:var(--teal-mid);}
+  .btn-print{background:var(--navy);color:white;}
+  .btn-print:hover{opacity:.88;}
+  .btn-danger{background:#fee2e2;color:var(--red);border:1px solid #fca5a5;}
+  .btn-danger:hover{background:#fca5a5;}
+  .btn-excel{background:#16a34a;color:white;}
+  .btn-excel:hover{opacity:.88;}
+  .btn-purple{background:var(--purple);color:white;}
+  .btn-purple:hover{opacity:.88;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:28px;right:28px;z-index:9999;background:var(--green);color:white;border-radius:10px;padding:14px 22px;font-weight:600;font-size:.93rem;box-shadow:var(--shadow-lg);transform:translateY(80px);opacity:0;transition:all .3s ease;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.error{background:var(--red);}
+
+  /* STATS */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+  .stat-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:20px 22px;box-shadow:var(--shadow);}
+  .stat-card .stat-label{font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+  .stat-card .stat-value{font-size:2rem;font-weight:700;color:var(--navy);margin-top:4px;font-family:'Merriweather',serif;}
+  .stat-card.t1{border-top:3px solid var(--teal);}
+  .stat-card.t2{border-top:3px solid var(--gold);}
+  .stat-card.t3{border-top:3px solid var(--navy);}
+  .stat-card.t4{border-top:3px solid var(--purple);}
+
+  /* FILTER BAR */
+  .filter-bar{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;box-shadow:var(--shadow);}
+  .filter-bar .f-group{display:flex;flex-direction:column;gap:4px;}
+  .filter-bar .f-group label{font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+  .filter-bar input,.filter-bar select{min-width:150px;max-width:200px;}
+  .filter-bar .spacer{flex:1;}
+
+  /* TABLES */
+  .table-wrap{background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;}
+  .data-table{width:100%;border-collapse:collapse;}
+  .data-table thead tr{background:var(--navy);}
+  .data-table th{text-align:left;font-size:.76rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding:12px 16px;}
+  .data-table td{padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:.88rem;}
+  .data-table tbody tr:hover{background:#f8fafc;cursor:pointer;}
+  .data-table tbody tr:last-child td{border-bottom:none;}
+
+  /* STATUS BADGE */
+  .sbadge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+  .s-New{background:#dbeafe;color:#1d4ed8;}
+  .s-Screened{background:#f3e8ff;color:#7c3aed;}
+  .s-Referred{background:#fef3c7;color:#92400e;}
+  .s-Approved{background:#dcfce7;color:#15803d;}
+  .s-No-Answer{background:#fee2e2;color:#b91c1c;}
+  .s-Enrolled-by-Other-Agency{background:#e0f2fe;color:#0369a1;}
+  .s-Not-Eligible{background:#f1f5f9;color:#475569;}
+
+  /* MODAL */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--white);border-radius:14px;width:100%;max-width:760px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+  .modal-header{background:var(--navy);color:white;padding:18px 24px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;}
+  .modal-header h2{font-family:'Merriweather',serif;font-size:1rem;}
+  .modal-close{background:none;border:none;color:#94a3b8;font-size:1.4rem;cursor:pointer;}
+  .modal-close:hover{color:white;}
+  .modal-body{padding:24px;}
+  .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-bottom:14px;}
+  .modal-field label{font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+  .modal-field .val{font-size:.93rem;color:var(--text);margin-top:2px;font-weight:500;}
+  .modal-sec{font-family:'Merriweather',serif;font-size:.85rem;color:var(--navy);border-bottom:1px solid var(--border);padding-bottom:8px;margin:20px 0 14px;}
+  .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  .status-select{border:1.5px solid var(--border);border-radius:6px;padding:7px 12px;font-family:'Source Sans 3',sans-serif;font-size:.88rem;}
+  .notes-inp{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:9px 12px;font-family:'Source Sans 3',sans-serif;font-size:.88rem;resize:vertical;min-height:60px;}
+
+  /* TIMELINE */
+  .timeline{margin-top:6px;}
+  .tl-item{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #f1f5f9;}
+  .tl-item:last-child{border-bottom:none;}
+  .tl-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;margin-top:2px;}
+  .tl-dot.New{background:#dbeafe;color:#1d4ed8;}
+  .tl-dot.Contacted{background:#fef3c7;color:#92400e;}
+  .tl-dot.Enrolled{background:#dcfce7;color:#15803d;}
+  .tl-dot.Declined{background:#fee2e2;color:#b91c1c;}
+  .tl-dot.Note{background:#f3e8ff;color:#7c3aed;}
+  .tl-dot.Created{background:#e0f2fe;color:#0369a1;}
+  .tl-content .tl-action{font-size:.88rem;font-weight:600;color:var(--text);}
+  .tl-content .tl-meta{font-size:.78rem;color:var(--muted);margin-top:2px;}
+  .tl-content .tl-note{font-size:.85rem;color:var(--text);margin-top:4px;background:#fafbfc;border-left:2px solid var(--border);padding:4px 10px;border-radius:0 4px 4px 0;}
+
+  /* REP MANAGEMENT */
+  .rep-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:var(--shadow);margin-bottom:12px;}
+  .rep-info{display:flex;align-items:center;gap:14px;}
+  .rep-avatar{width:42px;height:42px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:white;flex-shrink:0;}
+  .rep-name{font-weight:600;font-size:.95rem;color:var(--text);}
+  .rep-email{font-size:.82rem;color:var(--muted);}
+  .rep-stats{font-size:.82rem;color:var(--muted);text-align:right;}
+  .rep-stats strong{color:var(--navy);}
+  .add-rep-form{background:var(--white);border:1.5px dashed var(--border);border-radius:10px;padding:24px;margin-top:20px;}
+  .add-rep-form h3{font-family:'Merriweather',serif;font-size:.95rem;color:var(--navy);margin-bottom:18px;}
+
+  @media(max-width:680px){
+    .grid-2,.grid-3{grid-template-columns:1fr;}
+    .span-2{grid-column:span 1;}
+    .stats-row{grid-template-columns:1fr 1fr;}
+    .topnav{padding:0 14px;}
+    .main{padding:20px 14px 60px;}
+  }
+  @media print{
+    .topnav,.submit-bar,#tab-admin,#tab-my-referrals,#tab-coords{display:none!important;}
+    body{background:white;}
+    .section-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page" style="display:flex;min-height:100vh;background:linear-gradient(135deg,var(--navy) 0%,#0f1e30 50%,#1a3a2e 100%);align-items:center;justify-content:center;">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-icon">🏥</div>
+      <h1>Social Care Network</h1>
+      <p class="sub">Sign in to your account</p>
+    </div>
+    <div class="login-field"><label>Email Address</label><input type="email" id="login-email" placeholder="you@example.com" autocomplete="email"></div>
+    <div class="login-field"><label>Password</label><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')signIn()"></div>
+    <button class="btn-login" onclick="signIn()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-shell" style="display:none;">
+  <nav class="topnav">
+    <div class="topnav-brand"><div class="dot"></div>Social Care Network</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tab-btn-form" onclick="showTab('form',this)">➕ New Referral</button>
+      <button class="nav-tab" id="tab-btn-mine" onclick="showTab('my-referrals',this)">📋 My Referrals</button>
+      <button class="nav-tab admin-only" id="tab-btn-admin" style="display:none" onclick="showTab('admin',this)">📊 Dashboard</button>
+      <button class="nav-tab admin-only" id="tab-btn-coords" style="display:none" onclick="showTab("coords",this)">👥 Coordinators</button>
+    </div>
+    <div class="topnav-right">
+      <div class="user-pill"><div class="avatar" id="user-avatar">?</div><span id="user-email-display"></span></div>
+      <button class="btn-logout" onclick="signOut()">Sign out</button>
+    </div>
+  </nav>
+
+  <!-- FORM TAB -->
+  <div id="tab-form" class="main">
+    <div class="page-title">Client Referral Form <span class="pill">New Submission</span></div>
+    <div class="section">
+      <div class="section-header"><span class="badge">Section 1</span> Client Demographics</div>
+      <div class="section-body">
+        <div class="grid-3">
+          <div class="field"><label>First Name <span class="required">*</span></label><input type="text" id="f-first-name" placeholder="First name"></div>
+          <div class="field"><label>Last Name <span class="required">*</span></label><input type="text" id="f-last-name" placeholder="Last name"></div>
+          <div class="field"><label>Date of Birth <span class="required">*</span></label><input type="date" id="f-dob"></div>
+          <div class="field"><label>Medicaid CIN # <span style="color:var(--muted);font-size:.75rem;">(optional)</span></label><input type="text" id="f-cin" placeholder="e.g. AA12345A"></div>
+          <div class="field"><label>Phone Number <span class="required">*</span></label><input type="tel" id="f-phone" placeholder="(000) 000-0000"></div>
+          <div class="field"><label>Email Address <span style="color:var(--muted);font-size:.75rem;">(optional)</span></label><input type="email" id="f-email" placeholder="email@example.com"></div>
+        </div>
+        <div class="addr-section-label">Home Address</div>
+        <div class="grid-3">
+          <div class="field span-2"><label>Street Address</label><input type="text" id="f-street" placeholder="Street address"></div>
+          <div class="field"><label>Apt / Unit</label><input type="text" id="f-apt" placeholder="Apt, Suite…"></div>
+          <div class="field"><label>City</label><input type="text" id="f-city" placeholder="City"></div>
+          <div class="field"><label>State</label>
+            <select id="f-state"><option value="">— State —</option><option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option><option>CO</option><option>CT</option><option>DE</option><option>FL</option><option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option><option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option><option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option><option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option><option>NJ</option><option>NM</option><option selected>NY</option><option>NC</option><option>ND</option><option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option><option>SC</option><option>SD</option><option>TN</option><option>TX</option><option>UT</option><option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option><option>DC</option></select>
+          </div>
+          <div class="field"><label>ZIP Code</label><input type="text" id="f-zip" placeholder="ZIP" maxlength="10"></div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="badge">Section 2</span> Household Members</div>
+      <div class="section-body">
+        <div class="hh-count-row">
+          <label>Additional members in household: <span class="required">*</span></label>
+          <select id="f-hh-count" onchange="buildHHTable()"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option></select>
+        </div>
+        <div id="hh-table-wrap" style="display:none;margin-bottom:18px;">
+          <table class="hh-table"><thead><tr><th>#</th><th>First Name</th><th>Last Name</th><th>Date of Birth</th><th>Medicaid CIN #</th></tr></thead><tbody id="hh-rows"></tbody></table>
+        </div>
+        <div class="divider"></div>
+        <div class="q-block" style="padding-top:0;">
+          <div class="yn-row"><span class="yn-label">Is anyone in the household pregnant or postpartum?</span>
+            <div class="yn-opts"><label><input type="radio" name="pregnant" value="yes" onchange="toggle('preg-detail',true)"> Yes</label><label><input type="radio" name="pregnant" value="no" onchange="toggle('preg-detail',false)"> No</label></div>
+          </div>
+          <div class="conditional" id="preg-detail">
+            <div class="grid-2"><div class="field"><label>Status</label><select id="f-preg-status"><option value="">— Select —</option><option>Pregnant</option><option>Postpartum</option></select></div><div class="field"><label>Due / Delivery Date</label><input type="date" id="f-preg-date"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="badge">Section 3</span> Screening Questions</div>
+      <div class="section-body">
+        <div class="q-block">
+          <div class="yn-row"><span class="yn-label">1. Does your household need help with food? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="food" value="yes" onchange="toggle('food-detail',true)"> Yes</label><label><input type="radio" name="food" value="no" onchange="toggle('food-detail',false)"> No</label></div></div>
+          <div class="conditional" id="food-detail"><div class="cb-group"><label><input type="checkbox" id="food-delivery"> Home delivery meals</label><label><input type="checkbox" id="food-rx"> Prescriptions or vouchers</label><label><input type="checkbox" id="food-cooking"> Cooking supplies</label></div></div>
+        </div>
+        <div class="q-block">
+          <div class="yn-row"><span class="yn-label">2. Does your household receive WIC or Food Stamps (SNAP)? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="wic" value="yes" onchange="toggle('wic-detail',true)"> Yes</label><label><input type="radio" name="wic" value="no" onchange="toggle('wic-detail',false)"> No</label></div></div>
+          <div class="conditional" id="wic-detail"><div class="cb-group"><label><input type="checkbox" id="wic-wic"> WIC</label><label><input type="checkbox" id="wic-snap"> Food Stamps / SNAP</label><label><input type="checkbox" id="wic-both"> Both</label></div></div>
+        </div>
+        <div class="q-block">
+          <div class="yn-row"><span class="yn-label">3. Does anyone in the household currently work? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="work" value="yes" onchange="toggle('work-detail',true)"> Yes</label><label><input type="radio" name="work" value="no" onchange="toggle('work-detail',false)"> No</label></div></div>
+          <div class="conditional" id="work-detail"><div class="field"><label>Who is working?</label><input type="text" id="f-who-working" placeholder="e.g. Client, Spouse"></div></div>
+        </div>
+        <div class="q-block">
+          <div class="yn-row"><span class="yn-label">4. Does anyone in the household have dietary restrictions or food allergies? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="allergy" value="yes" onchange="toggle('allergy-detail',true)"> Yes</label><label><input type="radio" name="allergy" value="no" onchange="toggle('allergy-detail',false)"> No</label></div></div>
+          <div class="conditional" id="allergy-detail"><div class="field"><label>Please indicate dietary restrictions or food allergies</label><textarea id="f-allergy-details" placeholder="e.g. John — gluten intolerance; Maria — peanut allergy…"></textarea></div></div>
+        </div>
+        <div class="q-block"><div class="yn-row"><span class="yn-label">5. Does anyone in the household need help with transportation? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="driving" value="yes"> Yes</label><label><input type="radio" name="driving" value="no"> No</label></div></div></div>
+        <div class="q-block"><div class="yn-row"><span class="yn-label">6. Is your household behind on paying rent? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="rent" value="yes"> Yes</label><label><input type="radio" name="rent" value="no"> No</label></div></div></div>
+        <div class="q-block"><div class="yn-row"><span class="yn-label">7. Does your household receive Section 8 housing assistance? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="section8" value="yes"> Yes</label><label><input type="radio" name="section8" value="no"> No</label></div></div></div>
+        <div class="q-block">
+          <div class="yn-row"><span class="yn-label">8. Has your household's electricity been shut off or received a shut-off notice? <span class="required">*</span></span><div class="yn-opts"><label><input type="radio" name="electric" value="yes" onchange="toggle('elec-detail',true)"> Yes</label><label><input type="radio" name="electric" value="no" onchange="toggle('elec-detail',false)"> No</label></div></div>
+          <div class="conditional" id="elec-detail"><div class="cb-group"><label><input type="checkbox" id="elec-off"> Electricity already shut off</label><label><input type="checkbox" id="elec-notice"> Received a shut-off notice</label></div></div>
+        </div>
+      </div>
+      <div class="section-body" style="border-top:1px solid var(--border);">
+        <div class="field">
+          <label>Additional Comments / Notes</label>
+          <textarea id="f-comments" placeholder="Any additional information or comments about this referral…" style="min-height:100px;"></textarea>
+        </div>
+      </div>
+      <div class="submit-bar">
+        <button class="btn btn-ghost" onclick="clearForm()">Clear Form</button>
+        <div class="submit-bar-right">
+          <button class="btn btn-print" onclick="window.print()">🖨 Print</button>
+          <button class="btn btn-primary" onclick="submitReferral()">Submit Referral →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MY REFERRALS TAB -->
+  <div id="tab-my-referrals" class="main wide" style="display:none;">
+    <div class="page-title">My Referrals <span class="pill">Your Submissions</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Client Name</th><th>DOB</th><th>Medicaid CIN</th><th>City</th><th>Date Submitted</th><th>Status</th></tr></thead>
+        <tbody id="my-referrals-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADMIN DASHBOARD TAB -->
+  <div id="tab-admin" class="main wide" style="display:none;">
+    <div class="page-title">Admin Dashboard <span class="pill">All Referrals</span>
+      <button class="btn btn-excel" onclick="exportExcel()" style="margin-left:auto;font-size:.85rem;padding:8px 16px;">⬇ Export to Excel</button>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card t1"><div class="stat-label">Total Referrals</div><div class="stat-value" id="stat-total">—</div></div>
+      <div class="stat-card t2"><div class="stat-label">New</div><div class="stat-value" id="stat-new">—</div></div>
+      <div class="stat-card t3"><div class="stat-label">Approved</div><div class="stat-value" id="stat-enrolled">—</div></div>
+      <div class="stat-card t4"><div class="stat-label">This Month</div><div class="stat-value" id="stat-month">—</div></div>
+    </div>
+    <div class="filter-bar">
+      <div class="f-group"><label>Search</label><input type="text" id="admin-search" placeholder="Name or CIN…" oninput="filterReferrals()"></div>
+      <div class="f-group"><label>Status</label><select id="admin-status-filter" onchange="filterReferrals()"><option value="">All Statuses</option><option>New</option><option>Screened</option><option>Referred</option><option>Approved</option><option>No Answer</option><option>Enrolled by Other Agency</option><option>Not Eligible</option></select></div>
+      <div class="f-group"><label>Assigned To</label><select id="admin-assign-filter" onchange="filterReferrals()"><option value="">All</option></select></div>
+      <div class="f-group"><label>Rep</label><select id="admin-coord-filter" onchange="filterReferrals()"><option value="">All Coordinators</option></select></div>
+      <div class="spacer"></div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Client Name</th><th>DOB</th><th>Medicaid CIN</th><th>City</th><th>Submitted By</th><th>Assigned To</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody id="admin-referrals-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- REP MANAGEMENT TAB -->
+  <div id="tab-coords" class="main" style="display:none;">
+    <div class="page-title">Coordinator Management <span class="pill">Admin Only</span></div>
+    <div id="coord-list"></div>
+    <div class="add-rep-form">
+      <h3>➕ Add New Coordinator</h3>
+      <div class="grid-2">
+        <div class="field"><label>Email Address <span class="required">*</span></label><input type="email" id="new-coord-email" placeholder="rep@example.com"></div>
+        <div class="field"><label>Temporary Password <span class="required">*</span></label><input type="password" id="new-coord-pass" placeholder="Min 6 characters"></div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn btn-primary" onclick="addCoordinator()">Create Coordinator Account</button>
+      </div>
+      <p style="font-size:.8rem;color:var(--muted);margin-top:10px;">The coordinator will be able to change their password after first login.</p>
+    </div>
+  </div>
+
+<!-- SUCCESS SCREEN -->
+<div id="success-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,var(--navy) 0%,#0f1e30 50%,#1a3a2e 100%);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:20px;padding:52px 48px;max-width:480px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="width:80px;height:80px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:2.4rem;">✅</div>
+    <h2 style="font-family:'Merriweather',serif;font-size:1.6rem;color:var(--navy);margin-bottom:12px;">Submitted Successfully!</h2>
+    <p style="font-size:1rem;color:var(--muted);margin-bottom:8px;">The client referral has been received and saved to the database.</p>
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:32px;">Your administrator will review it shortly.</p>
+    <button onclick="closeSuccess()" style="background:var(--teal);color:white;border:none;border-radius:8px;padding:14px 36px;font-family:'Source Sans 3',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Submit Another Referral</button>
+  </div>
+</div>
+
+</div><!-- /app-shell -->
+
+<!-- REFERRAL DETAIL MODAL -->
+<div class="modal-overlay" id="referral-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="modal-title">Referral Detail</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://sqgyiutziputanzcrbao.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxZ3lpdXR6aXB1dGFuemNyYmFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NTMwODIsImV4cCI6MjA5NjQyOTA4Mn0.VYT2A2XcYpHwEYPK2F1tFFlfGpK8LXK207YWPiwbAWs';
+const ADMIN_EMAILS = ['yoelrubinfeld@gmail.com', 'Leibish35@gmail.com'];
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage
+  }
+});
+
+let currentUser = null;
+let allReferrals = [];
+let statusHistory = {};
+
+function isAdmin(email) { return ADMIN_EMAILS.map(e=>e.toLowerCase()).includes(email.toLowerCase()); }
+
+/* ── AUTH ── */
+async function signIn() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); return; }
+  onLogin(data.user);
+}
+async function signOut() {
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').classList.remove('show');
+}
+function onLogin(user) {
+  currentUser = user;
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'block';
+  document.getElementById('user-avatar').textContent = user.email.substring(0,2).toUpperCase();
+  document.getElementById('user-email-display').textContent = user.email;
+  if (isAdmin(user.email)) {
+    document.getElementById('tab-btn-admin').style.display = 'inline-block';
+    document.getElementById('tab-btn-coords').style.display = 'inline-block';
+  } else {
+    document.getElementById('tab-btn-admin').style.display = 'none';
+    document.getElementById('tab-btn-coords').style.display = 'none';
+  }
+  showTab('form', document.getElementById('tab-btn-form'));
+}
+sb.auth.onAuthStateChange((event, session) => { if (session?.user) onLogin(session.user); });
+
+/* ── TABS ── */
+function showTab(tab, btn) {
+  ['form','my-referrals','admin','reps'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (tab === 'my-referrals') loadMyReferrals();
+  if (tab === 'admin')        loadAdminReferrals();
+  if (tab === 'reps')         loadCoordinators();
+}
+
+/* ── FORM HELPERS ── */
+function toggle(id, show) { const el=document.getElementById(id); if(el) el.classList.toggle('visible',show); }
+function getRadio(name) { const el=document.querySelector(`input[name="${name}"]:checked`); return el ? el.value==='yes' : null; }
+function buildHHTable() {
+  const count = parseInt(document.getElementById('f-hh-count').value);
+  const wrap  = document.getElementById('hh-table-wrap');
+  const tbody = document.getElementById('hh-rows');
+  tbody.innerHTML = '';
+  if (count===0){ wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  for(let i=1;i<=count;i++) tbody.innerHTML += `<tr><td class="row-num">${i}</td><td><input type="text" class="hh-fname" placeholder="First name"></td><td><input type="text" class="hh-lname" placeholder="Last name"></td><td><input type="date" class="hh-dob"></td><td><input type="text" class="hh-cin" placeholder="CIN #"></td></tr>`;
+}
+function clearForm() {
+  document.querySelectorAll('#tab-form input,#tab-form textarea,#tab-form select').forEach(el => {
+    if(el.type==='radio'||el.type==='checkbox') el.checked=false;
+    else if(el.tagName==='SELECT') el.selectedIndex=0;
+    else el.value='';
+  });
+  document.querySelectorAll('.conditional').forEach(el => el.classList.remove('visible'));
+  buildHHTable();
+  showToast('Form cleared');
+}
+
+/* ── SUBMIT ── */
+async function submitReferral() {
+  if(!document.getElementById('f-first-name').value.trim()){showToast('First name is required',true);return;}
+  if(!document.getElementById('f-last-name').value.trim()){showToast('Last name is required',true);return;}
+  if(!document.getElementById('f-phone').value.trim()){showToast('Phone number is required',true);return;}
+
+  // Screening questions all required
+  const screeningFields = [
+    {name:'food',    label:'Question 1: Does your household need help with food?'},
+    {name:'wic',     label:'Question 2: WIC or Food Stamps'},
+    {name:'work',    label:'Question 3: Anyone in household currently work?'},
+    {name:'allergy', label:'Question 4: Dietary restrictions or food allergies'},
+    {name:'driving', label:'Question 5: Need help with transportation?'},
+    {name:'rent',    label:'Question 6: Behind on paying rent?'},
+    {name:'section8',label:'Question 7: Section 8 housing assistance?'},
+    {name:'electric',label:'Question 8: Electricity shut off or notice?'},
+  ];
+  for(const f of screeningFields){
+    if(!document.querySelector(`input[name="${f.name}"]:checked`)){
+      showToast(`Required: ${f.label}`, true); return;
+    }
+  }
+  const members=[];
+  document.querySelectorAll('#hh-rows tr').forEach(row=>{
+    members.push({first_name:row.querySelector('.hh-fname')?.value||'',last_name:row.querySelector('.hh-lname')?.value||'',dob:row.querySelector('.hh-dob')?.value||'',cin:row.querySelector('.hh-cin')?.value||''});
+  });
+  const payload={
+    submitted_by:currentUser.id, submitted_by_email:currentUser.email,
+    first_name:document.getElementById('f-first-name').value.trim(),
+    last_name:document.getElementById('f-last-name').value.trim(),
+    date_of_birth:document.getElementById('f-dob').value||null,
+    medicaid_cin:document.getElementById('f-cin').value.trim(),
+    phone:document.getElementById('f-phone').value.trim(),
+    email:document.getElementById('f-email').value.trim(),
+    street_address:document.getElementById('f-street').value.trim(),
+    apt_unit:document.getElementById('f-apt').value.trim(),
+    city:document.getElementById('f-city').value.trim(),
+    state:document.getElementById('f-state').value,
+    zip:document.getElementById('f-zip').value.trim(),
+    additional_members:parseInt(document.getElementById('f-hh-count').value),
+    household_members:members,
+    pregnant_postpartum:getRadio('pregnant'),
+    pregnant_status:document.getElementById('f-preg-status').value,
+    pregnant_date:document.getElementById('f-preg-date').value||null,
+    needs_food:getRadio('food'),
+    food_options:{delivery:document.getElementById('food-delivery').checked,rx:document.getElementById('food-rx').checked,cooking:document.getElementById('food-cooking').checked},
+    receives_wic_snap:getRadio('wic'),
+    wic_snap_options:{wic:document.getElementById('wic-wic').checked,snap:document.getElementById('wic-snap').checked,both:document.getElementById('wic-both').checked},
+    household_working:getRadio('work'),
+    who_is_working:document.getElementById('f-who-working').value.trim(),
+    has_allergies:getRadio('allergy'),
+    allergy_details:document.getElementById('f-allergy-details').value.trim(),
+    has_driver:getRadio('driving'), has_section8:getRadio('section8'),
+    behind_on_rent:getRadio('rent'), electricity_issue:getRadio('electric'),
+    electricity_options:{shutoff:document.getElementById('elec-off').checked,notice:document.getElementById('elec-notice').checked},
+    notes: document.getElementById('f-comments').value.trim(),
+    status:'New'
+  };
+  const { data, error } = await sb.from('referrals').insert(payload).select().single();
+  if(error){showToast('Error: '+error.message,true);return;}
+  // Log creation in history
+  await logHistory(data.id,'Created','Referral created',currentUser.email);
+  clearForm();
+  // Show big success screen
+  const ss = document.getElementById('success-screen');
+  ss.style.display = 'flex';
+}
+
+function closeSuccess() {
+  document.getElementById('success-screen').style.display = 'none';
+  showTab('form', document.getElementById('tab-btn-form'));
+}
+
+/* ── STATUS HISTORY ── */
+async function logHistory(referralId, action, detail, byEmail) {
+  await sb.from('status_history').insert({
+    referral_id: referralId,
+    action, detail,
+    changed_by: byEmail,
+    changed_at: new Date().toISOString()
+  });
+}
+async function getHistory(referralId) {
+  const { data } = await sb.from('status_history').select('*').eq('referral_id', referralId).order('changed_at', { ascending: true });
+  return data || [];
+}
+
+/* ── MY REFERRALS ── */
+async function loadMyReferrals() {
+  const { data } = await sb.from('referrals').select('*').eq('submitted_by',currentUser.id).order('created_at',{ascending:false});
+  const tbody = document.getElementById('my-referrals-body');
+  if(!data?.length){ tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">No referrals submitted yet.</td></tr>`; return; }
+  allReferrals = data;
+  tbody.innerHTML = data.map(r=>`<tr onclick="openModal('${r.id}',false)"><td><strong>${r.first_name} ${r.last_name}</strong></td><td>${r.date_of_birth||'—'}</td><td>${r.medicaid_cin||'—'}</td><td>${r.city||'—'}</td><td>${new Date(r.created_at).toLocaleDateString()}</td><td><span class="sbadge s-${r.status.replace(/ /g,'-')}">${r.status}</span></td></tr>`).join('');
+}
+
+/* ── ADMIN REFERRALS ── */
+async function loadAdminReferrals() {
+  const { data, error } = await sb.from('referrals').select('*').order('created_at',{ascending:false});
+  if(error) {
+    showToast('Error loading referrals: ' + error.message, true);
+    console.error('Admin load error:', error);
+    return;
+  }
+  allReferrals = data || [];
+  if(allReferrals.length === 0) {
+    document.getElementById('admin-referrals-body').innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">No referrals found in database.</td></tr>`;
+  }
+  updateStats();
+  populateRepFilter();
+  renderAdminTable(allReferrals);
+}
+function updateStats() {
+  const now = new Date();
+  document.getElementById('stat-total').textContent    = allReferrals.length;
+  document.getElementById('stat-new').textContent      = allReferrals.filter(r=>r.status==='New').length;
+  document.getElementById('stat-enrolled').textContent = allReferrals.filter(r=>r.status==='Approved').length;
+  document.getElementById('stat-month').textContent    = allReferrals.filter(r=>{ const d=new Date(r.created_at); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); }).length;
+}
+function populateRepFilter() {
+  const emails = [...new Set(allReferrals.map(r=>r.submitted_by_email))];
+  const sel = document.getElementById('admin-coord-filter');
+  sel.innerHTML = '<option value="">All Coordinators</option>'+emails.map(e=>`<option>${e}</option>`).join('');
+  const assignSel = document.getElementById('admin-assign-filter');
+  const assignedEmails = [...new Set(allReferrals.map(r=>r.assigned_to_email).filter(Boolean))];
+  assignSel.innerHTML = '<option value="">All</option><option value="unassigned">Unassigned</option>'+assignedEmails.map(e=>`<option>${e}</option>`).join('');
+}
+function filterReferrals() {
+  const q=document.getElementById('admin-search').value.toLowerCase();
+  const status=document.getElementById('admin-status-filter').value;
+  const rep=document.getElementById('admin-coord-filter').value;
+  const assigned=document.getElementById('admin-assign-filter').value;
+  renderAdminTable(allReferrals.filter(r=>{
+    const name=`${r.first_name} ${r.last_name}`.toLowerCase();
+    const cin=(r.medicaid_cin||'').toLowerCase();
+    const matchAssigned = !assigned || (assigned==='unassigned' ? !r.assigned_to_email : r.assigned_to_email===assigned);
+    return(!q||name.includes(q)||cin.includes(q))&&(!status||r.status===status)&&(!rep||r.submitted_by_email===rep)&&matchAssigned;
+  }));
+}
+function renderAdminTable(data) {
+  const tbody = document.getElementById('admin-referrals-body');
+  if(!data.length){ tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">No referrals found.</td></tr>`; return; }
+  tbody.innerHTML = data.map(r=>`<tr onclick="openModal('${r.id}',true)"><td><strong>${r.first_name} ${r.last_name}</strong></td><td>${r.date_of_birth||'—'}</td><td>${r.medicaid_cin||'—'}</td><td>${r.city||'—'}, ${r.state||''}</td><td style="font-size:.8rem;color:var(--muted);">${r.submitted_by_email}</td><td style="font-size:.8rem;color:var(--teal);font-weight:600;">${r.assigned_to_email||'<span style="color:var(--muted)">Unassigned</span>'}</td><td>${new Date(r.created_at).toLocaleDateString()}</td><td><span class="sbadge s-${r.status.replace(/ /g,'-')}">${r.status}</span></td></tr>`).join('');
+}
+
+/* ── EXCEL EXPORT ── */
+function exportExcel() {
+  if(!allReferrals.length){ showToast('No referrals to export',true); return; }
+  const rows = allReferrals.map(r=>({
+    'First Name':r.first_name, 'Last Name':r.last_name,
+    'Date of Birth':r.date_of_birth||'', 'Medicaid CIN':r.medicaid_cin||'',
+    'Phone':r.phone||'', 'Street':r.street_address||'', 'Apt':r.apt_unit||'',
+    'City':r.city||'', 'State':r.state||'', 'ZIP':r.zip||'',
+    'Additional Members':r.additional_members||0,
+    'Pregnant/Postpartum':r.pregnant_postpartum?'Yes':'No',
+    'Pregnant Status':r.pregnant_status||'',
+    'Needs Food Help':yn_text(r.needs_food),
+    'Food Options':r.food_options ? Object.entries(r.food_options).filter(([,v])=>v).map(([k])=>k).join(', ') : '',
+    'WIC/SNAP':yn_text(r.receives_wic_snap),
+    'Household Working':yn_text(r.household_working), 'Who Working':r.who_is_working||'',
+    'Has Allergies':yn_text(r.has_allergies), 'Allergy Details':r.allergy_details||'',
+    'Has Driver':yn_text(r.has_driver), 'Section 8':yn_text(r.has_section8),
+    'Behind on Rent':yn_text(r.behind_on_rent), 'Electricity Issue':yn_text(r.electricity_issue),
+    'Status':r.status, 'Notes':r.notes||'',
+    'Submitted By':r.submitted_by_email,
+    'Date Submitted':new Date(r.created_at).toLocaleDateString()
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Referrals');
+  XLSX.writeFile(wb, `SCN_Referrals_${new Date().toISOString().split('T')[0]}.xlsx`);
+  showToast('✅ Excel file downloaded!');
+}
+function yn_text(val){ return val===true?'Yes':val===false?'No':'—'; }
+
+/* ── REP MANAGEMENT ── */
+async function loadCoordinators() {
+  const { data: referrals } = await sb.from('referrals').select('submitted_by_email');
+  const counts = {};
+  referrals?.forEach(r => { counts[r.submitted_by_email] = (counts[r.submitted_by_email]||0)+1; });
+  const { data: users, error } = await sb.auth.admin?.listUsers?.() || { data: null };
+  const repList = document.getElementById('coord-list');
+  const emails = Object.keys(counts);
+  if(!emails.length){ repList.innerHTML = `<p style="color:var(--muted);font-size:.9rem;">No reps have submitted referrals yet.</p>`; return; }
+  repList.innerHTML = emails.map(email => {
+    const initials = email.substring(0,2).toUpperCase();
+    const count = counts[email]||0;
+    const isAdmin = email === ADMIN_EMAIL;
+    return `<div class="rep-card">
+      <div class="rep-info">
+        <div class="rep-avatar" style="${isAdmin?'background:var(--gold);color:var(--navy)':''}">${initials}</div>
+        <div><div class="rep-name">${email} ${isAdmin?'<span style="font-size:.72rem;background:var(--gold);color:var(--navy);padding:2px 8px;border-radius:20px;font-weight:700;">ADMIN</span>':''}</div></div>
+      </div>
+      <div class="rep-stats">Referrals submitted: <strong>${count}</strong></div>
+    </div>`;
+  }).join('');
+}
+
+async function addCoordinator() {
+  const email = document.getElementById('new-coord-email').value.trim();
+  const pass  = document.getElementById('new-coord-pass').value;
+  if(!email||!pass){ showToast('Email and password required',true); return; }
+  if(pass.length < 6){ showToast('Password must be at least 6 characters',true); return; }
+  const { error } = await sb.auth.signUp({ email, password: pass });
+  if(error){ showToast('Error: '+error.message,true); return; }
+  document.getElementById('new-coord-email').value = '';
+  document.getElementById('new-coord-pass').value = '';
+  showToast(`✅ Account created for ${email}! They can now log in.`);
+}
+
+/* ── MODAL ── */
+async function openModal(id, adminView) {
+  const r = allReferrals.find(x=>x.id===id);
+  if(!r) return;
+  const history = await getHistory(id);
+  const adminAccess = isAdmin(currentUser.email);
+  document.getElementById('modal-title').textContent = `${r.first_name} ${r.last_name}`;
+  const members = (r.household_members||[]).filter(m=>m.first_name).map(m=>`<li style="font-size:.88rem;margin-bottom:4px;">${m.first_name} ${m.last_name} — DOB: ${m.dob||'?'} — CIN: ${m.cin||'?'}</li>`).join('');
+  const foodOpts = r.food_options ? Object.entries(r.food_options).filter(([,v])=>v).map(([k])=>k).join(', ')||'—' : '—';
+  const wicOpts  = r.wic_snap_options ? Object.entries(r.wic_snap_options).filter(([,v])=>v).map(([k])=>k).join(', ')||'—' : '—';
+  const elecOpts = r.electricity_options ? Object.entries(r.electricity_options).filter(([,v])=>v).map(([k])=>k).join(', ')||'—' : '—';
+
+  const tlIcons = {Created:'🆕',New:'🔵',Contacted:'🟡',Enrolled:'🟢',Declined:'🔴',Note:'📝'};
+  const timelineHtml = history.length ? history.map(h=>`
+    <div class="tl-item">
+      <div class="tl-dot ${h.action}">${tlIcons[h.action]||'•'}</div>
+      <div class="tl-content">
+        <div class="tl-action">${h.action} ${h.action==='Note'?'added':h.action==='Created'?'':'→ '+h.action}</div>
+        ${h.detail&&h.action==='Note'?`<div class="tl-note">${h.detail}</div>`:''}
+        <div class="tl-meta">${h.changed_by} &nbsp;·&nbsp; ${new Date(h.changed_at).toLocaleString()}</div>
+      </div>
+    </div>`).join('') : '<p style="font-size:.85rem;color:var(--muted);">No history yet.</p>';
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-sec">👤 Client Information</div>
+    <div class="modal-grid">
+      <div class="modal-field"><label>Full Name</label><div class="val">${r.first_name} ${r.last_name}</div></div>
+      <div class="modal-field"><label>Date of Birth</label><div class="val">${r.date_of_birth||'—'}</div></div>
+      <div class="modal-field"><label>Medicaid CIN</label><div class="val">${r.medicaid_cin||'—'}</div></div>
+      <div class="modal-field"><label>Phone</label><div class="val">${r.phone||'—'}</div></div>
+      <div class="modal-field" style="grid-column:span 2"><label>Address</label><div class="val">${[r.street_address,r.apt_unit,r.city,r.state,r.zip].filter(Boolean).join(', ')||'—'}</div></div>
+    </div>
+    <div class="modal-sec">🏠 Household (${r.additional_members||0} additional members)</div>
+    ${members?`<ul style="padding-left:18px;">${members}</ul>`:'<p style="font-size:.88rem;color:var(--muted);">No additional members</p>'}
+    ${r.pregnant_postpartum?`<p style="margin-top:8px;font-size:.88rem;"><strong>Pregnant/Postpartum:</strong> ${r.pregnant_status||'Yes'} — ${r.pregnant_date||'—'}</p>`:''}
+    <div class="modal-sec">📋 Screening Answers</div>
+    <div class="modal-grid">
+      <div class="modal-field"><label>Needs food help</label><div class="val">${yn(r.needs_food)} ${r.needs_food?`(${foodOpts})`:''}</div></div>
+      <div class="modal-field"><label>WIC / SNAP</label><div class="val">${yn(r.receives_wic_snap)} ${r.receives_wic_snap?`(${wicOpts})`:''}</div></div>
+      <div class="modal-field"><label>Anyone working</label><div class="val">${yn(r.household_working)} ${r.who_is_working?`— ${r.who_is_working}`:''}</div></div>
+      <div class="modal-field"><label>Allergies</label><div class="val">${yn(r.has_allergies)} ${r.allergy_details?`— ${r.allergy_details}`:''}</div></div>
+      <div class="modal-field"><label>Has driver/vehicle</label><div class="val">${yn(r.has_driver)}</div></div>
+      <div class="modal-field"><label>Section 8</label><div class="val">${yn(r.has_section8)}</div></div>
+      <div class="modal-field"><label>Behind on rent</label><div class="val">${yn(r.behind_on_rent)}</div></div>
+      <div class="modal-field"><label>Electricity issue</label><div class="val">${yn(r.electricity_issue)} ${r.electricity_issue?`(${elecOpts})`:''}</div></div>
+    </div>
+    ${adminAccess?`
+    <div class="modal-sec">📝 Add Note</div>
+    <textarea class="notes-inp" id="modal-note-input" placeholder="Type a note and click Save Note…"></textarea>
+    `:''}
+    <div class="modal-sec">🕐 Status Timeline</div>
+    <div class="timeline">${timelineHtml}</div>
+    <p style="font-size:.78rem;color:var(--muted);margin-top:16px;">Submitted by ${r.submitted_by_email} on ${new Date(r.created_at).toLocaleString()}</p>
+  `;
+
+  document.getElementById('modal-footer').innerHTML = adminAccess ? `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <label style="font-size:.8rem;font-weight:600;color:var(--muted);">STATUS</label>
+      <select class="status-select" id="modal-status">
+        <option ${r.status==='New'?'selected':''}>New</option>
+        <option ${r.status==='Screened'?'selected':''}>Screened</option>
+        <option ${r.status==='Referred'?'selected':''}>Referred</option>
+        <option ${r.status==='Approved'?'selected':''}>Approved</option>
+        <option ${r.status==='No Answer'?'selected':''}>No Answer</option>
+        <option ${r.status==='Enrolled by Other Agency'?'selected':''}>Enrolled by Other Agency</option>
+        <option ${r.status==='Not Eligible'?'selected':''}>Not Eligible</option>
+      </select>
+      <button class="btn btn-primary" onclick="updateStatus('${r.id}')">Update Status</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);width:100%;">
+      <label style="font-size:.8rem;font-weight:600;color:var(--muted);">ASSIGN TO</label>
+      <select class="status-select" id="modal-assign" style="min-width:200px;">
+        <option value="">— Select Coordinator —</option>
+        ${allReferrals.map(x=>x.submitted_by_email).filter((v,i,a)=>a.indexOf(v)===i).map(e=>`<option value="${e}" ${r.assigned_to_email===e?'selected':''}>${e}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" onclick="assignReferral('${r.id}')">Assign</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);width:100%;">
+      <button class="btn btn-ghost" onclick="saveNote('${r.id}')">💾 Save Note</button>
+      <button class="btn btn-print" onclick="window.print()">🖨 Print</button>
+      <button class="btn btn-danger" onclick="deleteReferral('${r.id}', '${r.first_name} ${r.last_name}')">🗑 Delete</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  ` : `
+    <button class="btn btn-print" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-primary" onclick="closeModal()">Close</button>
+  `;
+
+  document.getElementById('referral-modal').classList.add('show');
+}
+
+async function assignReferral(id) {
+  const email = document.getElementById('modal-assign').value;
+  if(!email){ showToast('Please select a coordinator', true); return; }
+  const { error } = await sb.from('referrals').update({ assigned_to_email: email }).eq('id', id);
+  if(error){ showToast('Error: '+error.message, true); return; }
+  const r = allReferrals.find(x=>x.id===id);
+  if(r) r.assigned_to_email = email;
+  await logHistory(id, 'Note', `Assigned to ${email}`, currentUser.email);
+  showToast(`✅ Assigned to ${email}`);
+  renderAdminTable(allReferrals);
+  openModal(id, true);
+}
+
+async function deleteReferral(id, name) {
+  if(!confirm(`Are you sure you want to delete the referral for ${name}? This cannot be undone.`)) return;
+  const { error } = await sb.from('referrals').delete().eq('id', id);
+  if(error){ showToast('Error deleting: '+error.message, true); return; }
+  allReferrals = allReferrals.filter(r => r.id !== id);
+  closeModal();
+  showToast(`✅ Referral for ${name} deleted.`);
+  renderAdminTable(allReferrals);
+  updateStats();
+}
+
+function closeModal() { document.getElementById('referral-modal').classList.remove('show'); }
+
+async function updateStatus(id) {
+  const status = document.getElementById('modal-status').value;
+  const { error } = await sb.from('referrals').update({status}).eq('id',id);
+  if(error){ showToast('Error: '+error.message,true); return; }
+  await logHistory(id, status, `Status changed to ${status}`, currentUser.email);
+  const r = allReferrals.find(x=>x.id===id);
+  if(r) r.status = status;
+  showToast('✅ Status updated!');
+  renderAdminTable(allReferrals);
+  updateStats();
+  openModal(id, true);
+}
+
+async function saveNote(id) {
+  const note = document.getElementById('modal-note-input')?.value?.trim();
+  if(!note){ showToast('Please type a note first',true); return; }
+  await logHistory(id, 'Note', note, currentUser.email);
+  showToast('✅ Note saved!');
+  openModal(id, true);
+}
+
+function yn(val){
+  if(val===true) return '<span style="color:var(--green);font-weight:600;">Yes</span>';
+  if(val===false) return '<span style="color:var(--red);font-weight:600;">No</span>';
+  return '—';
+}
+function showToast(msg,isError=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(isError?' error':'');
+  setTimeout(()=>t.classList.add('show'),10);
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+document.getElementById('referral-modal').addEventListener('click',e=>{ if(e.target===document.getElementById('referral-modal')) closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+</script>
+</body>
+</html>
