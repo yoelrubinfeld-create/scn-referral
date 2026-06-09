@@ -436,8 +436,12 @@ let statusHistory = {};
 let allCoordinators = [];
 
 async function loadAllCoordinators() {
-  const { data } = await sb.from('coordinators').select('email').order('email');
-  allCoordinators = (data || []).map(c => c.email);
+  try {
+    const { data } = await sb.from('coordinators').select('email').order('email');
+    allCoordinators = (data || []).map(c => c.email);
+  } catch(e) {
+    allCoordinators = [];
+  }
 }
 
 function isAdmin(email) { return ADMIN_EMAILS.map(e=>e.toLowerCase()).includes(email.toLowerCase()); }
@@ -462,19 +466,23 @@ async function signOut() {
   document.getElementById('login-error').classList.remove('show');
 }
 function onLogin(user) {
-  currentUser = user;
-  document.getElementById('login-page').style.display = 'none';
-  document.getElementById('app-shell').style.display = 'block';
-  document.getElementById('user-avatar').textContent = user.email.substring(0,2).toUpperCase();
-  document.getElementById('user-email-display').textContent = user.email;
-  if (isAdmin(user.email)) {
-    document.getElementById('tab-btn-admin').style.display = 'inline-block';
-    document.getElementById('tab-btn-coords').style.display = 'inline-block';
-  } else {
-    document.getElementById('tab-btn-admin').style.display = 'none';
-    document.getElementById('tab-btn-coords').style.display = 'none';
+  try {
+    currentUser = user;
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app-shell').style.display = 'block';
+    document.getElementById('user-avatar').textContent = user.email.substring(0,2).toUpperCase();
+    document.getElementById('user-email-display').textContent = user.email;
+    if (isAdmin(user.email)) {
+      document.getElementById('tab-btn-admin').style.display = 'inline-block';
+      document.getElementById('tab-btn-coords').style.display = 'inline-block';
+    } else {
+      document.getElementById('tab-btn-admin').style.display = 'none';
+      document.getElementById('tab-btn-coords').style.display = 'none';
+    }
+    showTab('form', document.getElementById('tab-btn-form'));
+  } catch(e) {
+    console.error('Login display error:', e);
   }
-  showTab('form', document.getElementById('tab-btn-form'));
 }
 sb.auth.onAuthStateChange((event, session) => { if (session?.user) onLogin(session.user); });
 
